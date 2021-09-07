@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	mgo "github.com/vinllen/mgo"
+	mgo "github.com/hongmi/mgo"
 	. "gopkg.in/check.v1"
 
-	"github.com/vinllen/mgo/dbtest"
+	"github.com/hongmi/mgo/dbtest"
 )
 
 type M map[string]interface{}

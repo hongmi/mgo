@@ -38,7 +38,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vinllen/mgo/bson"
+	"github.com/hongmi/mgo/bson"
 	. "gopkg.in/check.v1"
 )
 

@@ -1,8 +1,8 @@
 package mgo_test
 
 import (
-	mgo "github.com/vinllen/mgo"
-	"github.com/vinllen/mgo/bson"
+	mgo "github.com/hongmi/mgo"
+	"github.com/hongmi/mgo/bson"
 	. "gopkg.in/check.v1"
 )
 
