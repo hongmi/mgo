@@ -28,12 +28,14 @@ package mgo
 
 import (
 	"crypto/md5"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"net"
 	"net/url"
@@ -335,8 +337,29 @@ func ParseURL(url string) (*DialInfo, error) {
 	var readPreferenceTagSets []bson.D
 	minPoolSize := 0
 	maxIdleTimeMS := 0
+	ssl := false
+	tlscafile := ""
+	tlscertificatefile := ""
+	tlsprivatekeyfile := ""
+	tlsinsecure := false
 	for _, opt := range uinfo.options {
 		switch opt.key {
+		case "ssl":
+			fallthrough
+		case "tls":
+			if v, err := strconv.ParseBool(opt.value); err == nil && v {
+				ssl = true
+			}
+		case "tlscafile":
+			tlscafile = opt.value
+		case "tlscertificatefile":
+			tlscertificatefile = opt.value
+		case "tlsprivatekeyfile":
+			tlsprivatekeyfile = opt.value
+		case "tlsinsecure":
+			if v, err := strconv.ParseBool(opt.value); err == nil && v {
+				tlsinsecure = true
+			}
 		case "authSource":
 			source = opt.value
 		case "authMechanism":
@@ -433,6 +456,40 @@ func ParseURL(url string) (*DialInfo, error) {
 		ReplicaSetName: setName,
 		MinPoolSize:    minPoolSize,
 		MaxIdleTimeMS:  maxIdleTimeMS,
+	}
+	if ssl && info.DialServer == nil {
+		roots := x509.NewCertPool()
+		if ca, err := ioutil.ReadFile(tlscafile); err == nil {
+			roots.AppendCertsFromPEM(ca)
+		}
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: tlsinsecure,
+		}
+		tlsConfig.RootCAs = roots
+
+		clientCert, err := ioutil.ReadFile(tlscertificatefile)
+		if err != nil {
+			return nil, err
+		}
+
+		clientKey, err := ioutil.ReadFile(tlsprivatekeyfile)
+		if err != nil {
+			return nil, err
+		}
+
+		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConfig.Certificates =[]tls.Certificate{cert}
+		tlsConfig.BuildNameToCertificate()
+
+		// Set DialServer only if nil, we don't want to override user's settings.
+		info.DialServer = func(addr *ServerAddr) (net.Conn, error) {
+			conn, err := tls.Dial("tcp", addr.String(), tlsConfig)
+			return conn, err
+		}
 	}
 	return &info, nil
 }
